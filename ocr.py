@@ -96,4 +96,4 @@ async def read_receipt(data: bytes) -> tuple[list[dict], str | None]:
     if not items:
         return [], "не нашёл сумму на чеке"
     return items, None
-Personal finance app with WhatsApp tracking - Grok
+
