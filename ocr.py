@@ -1,12 +1,44 @@
+
 #!/usr/bin/env python3
-"""Чтение суммы с фото чека (Tesseract)."""
+"""Чтение суммы с фото чека (Tesseract). Только итог."""
 
 from __future__ import annotations
 
 import asyncio
+import re
 from io import BytesIO
 
 from parser import parse_expenses
+
+
+def _one_total(items: list[dict], text: str) -> list[dict]:
+    if not items:
+        return []
+    low = (text or "").lower()
+    chosen = max(items, key=lambda i: float(i.get("amount") or 0))
+    for key in ("итого", "итог", "total", "сумма к оплате"):
+        pos = low.find(key)
+        if pos < 0:
+            continue
+        tail = text[pos : pos + 60]
+        nums = re.findall(r"\d[\d\s]{0,10}[.,]?\d{0,2}", tail)
+        for raw in nums:
+            try:
+                val = float(raw.replace(" ", "").replace(",", "."))
+            except ValueError:
+                continue
+            if val < 1:
+                continue
+            near = [i for i in items if abs(float(i["amount"]) - val) < 0.05]
+            if near:
+                chosen = near[0]
+                break
+            chosen = {**chosen, "amount": val}
+            break
+        break
+    cat = chosen.get("category") or "Прочее"
+    chosen["description"] = cat
+    return [chosen]
 
 
 async def read_receipt(data: bytes) -> tuple[list[dict], str | None]:
@@ -60,7 +92,8 @@ async def read_receipt(data: bytes) -> tuple[list[dict], str | None]:
     if not text:
         return [], "на фото нет читаемого текста"
     items = parse_expenses(text)
+    items = _one_total(items, text)
     if not items:
-        preview = text[:180]
-        return [], f"не нашёл сумму. Распознал: {preview}"
+        return [], "не нашёл сумму на чеке"
     return items, None
+Personal finance app with WhatsApp tracking - Grok
