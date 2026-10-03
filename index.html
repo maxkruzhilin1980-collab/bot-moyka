@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ru" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <title>Kadlan — кабланы и мастера</title>
+  <meta name="theme-color" content="#009fd9" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Kadlan" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css?v=88" />
+</head>
+<body>
+  <div id="app"><div class="card" style="margin:24px"><p>Загрузка Kadlan…</p></div></div>
+  <div id="lightbox" hidden>
+    <button type="button" id="lightbox-x" aria-label="close">×</button>
+    <img id="lightbox-img" alt="" />
+    <iframe id="lightbox-pdf" title="pdf" hidden></iframe>
+  </div>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
+  </script>
+  <script src="app.js?v=95"></script>
+</body>
+</html>
