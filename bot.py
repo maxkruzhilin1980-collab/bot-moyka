@@ -439,10 +439,43 @@ def day_report(chat_id: int, day: str) -> list[sqlite3.Row]:
         )
 
 
+def expense_rows(year: int, month: int) -> list[sqlite3.Row]:
+    prefix = f"{year:04d}-{month:02d}"
+    paths = [
+        BASE / "data" / "expenses.db",
+        BASE / "expenses.db",
+        Path("/app/data/expenses.db"),
+        Path("/data/expenses.db"),
+    ]
+    found = []
+    for path in paths:
+        if not path.exists():
+            continue
+        try:
+            with sqlite3.connect(path) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    """
+                    SELECT expense_date AS paid_on,
+                           COALESCE(NULLIF(description, ''), category, 'Чек') AS client,
+                           amount,
+                           id
+                    FROM expenses
+                    WHERE expense_date LIKE ?
+                    ORDER BY expense_date, id
+                    """,
+                    (f"{prefix}%",),
+                ).fetchall()
+            found.extend(rows)
+        except sqlite3.Error:
+            continue
+    return found
+
+
 def month_report(chat_id: int, year: int, month: int) -> list[sqlite3.Row]:
     prefix = f"{year:04d}-{month:02d}"
     with db() as conn:
-        return list(
+        rows = list(
             conn.execute(
                 """
                 SELECT paid_on, client, amount, id
@@ -453,6 +486,9 @@ def month_report(chat_id: int, year: int, month: int) -> list[sqlite3.Row]:
                 (chat_id, f"{prefix}%"),
             )
         )
+    if rows:
+        return rows
+    return expense_rows(year, month)
 
 
 def client_report(chat_id: int, name: str) -> list[sqlite3.Row]:
@@ -496,7 +532,7 @@ def delete_last(chat_id: int) -> sqlite3.Row | None:
 
 def format_rows(rows: list[sqlite3.Row], title: str) -> str:
     if not rows:
-        return f"{title}\nПока пусто."
+        return f"{title}\nЗаписей нет. Чеки с фото в эту базу не попали."
     lines = [title, ""]
     total = 0.0
     by_client: dict[str, list[sqlite3.Row]] = {}
