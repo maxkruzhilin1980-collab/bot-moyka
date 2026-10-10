@@ -401,11 +401,22 @@ def parse_message(text: str) -> tuple[str, str, float] | None:
             paid_on = parsed
             rest = m_date.group(2).strip()
     m_amt = AMOUNT_RE.match(rest)
-    if not m_amt:
+    m_rev = re.match(r"^(?P<amount>\d+(?:[.,]\d{1,2})?)\s+(?P<name>.+)$", rest)
+    m_only = re.match(r"^(?P<amount>\d+(?:[.,]\d{1,2})?)$", rest)
+    if m_amt:
+        name = " ".join(m_amt.group("name").split())
+        amount = float(m_amt.group("amount").replace(",", "."))
+        pay_raw = (m_amt.group("pay") or "нал").lower()
+    elif m_rev:
+        name = " ".join(m_rev.group("name").split())
+        amount = float(m_rev.group("amount").replace(",", "."))
+        pay_raw = "нал"
+    elif m_only:
+        name = "Чек"
+        amount = float(m_only.group("amount").replace(",", "."))
+        pay_raw = "нал"
+    else:
         return None
-    name = " ".join(m_amt.group("name").split())
-    amount = float(m_amt.group("amount").replace(",", "."))
-    pay_raw = (m_amt.group("pay") or "нал").lower()
     pay = PAY_MAP.get(pay_raw, "מזומן")
     if not name:
         return None
@@ -1139,8 +1150,7 @@ def main() -> None:
             return
         parsed = parse_message(message.text or "")
         if not parsed:
-            if message.chat.type == "private":
-                bot.reply_to(message, "Пишите: Иван 2500  или  15.09 Иван 2500")
+            bot.reply_to(message, "Не понял. Напишите: 881 коробка")
             return
         paid_on, client, amount, pay = parsed
         uid = message.from_user.id if message.from_user else 0
