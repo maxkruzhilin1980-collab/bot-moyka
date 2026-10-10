@@ -623,6 +623,9 @@ def make_receipt_pdf(
         pdf.add_font("He", "", str(FONT))
         pdf.add_font("He", "B", str(FONT_B if FONT_B.exists() else FONT))
         face = "He"
+    elif FONT_RU.exists():
+        pdf.add_font("Ru0", "", str(FONT_RU))
+        face = "Ru0"
     else:
         face = "Helvetica"
     ru = face
@@ -1104,7 +1107,7 @@ def main() -> None:
                 return
             today = datetime.now().strftime("%Y-%m-%d")
             internal = add_payment(chat_id(message), message.from_user.id, today, note or "Чек", amount)
-            bot.reply_to(message, f"Записал с чека:\n#{public_no(internal)} {today} — {amount:.0f} ₽ — {note or 'Чек'}")
+            bot.reply_to(message, f"Записал с чека:\n#{public_no(internal)} {today} — {amount:.0f} руб — {note or 'Чек'}")
         except Exception as exc:
             bot.reply_to(message, f"Чек получил, но не записал: {exc}")
 
@@ -1157,15 +1160,19 @@ def main() -> None:
         rid = add_payment(chat_id(message), uid, paid_on, client, amount)
         num = public_no(rid)
         d = datetime.strptime(paid_on, "%Y-%m-%d").strftime("%d.%m.%Y")
-        path = make_receipt_pdf(num, paid_on, client, amount, pay)
-        with path.open("rb") as f:
-            bot.send_document(
-                message.chat.id,
-                f,
-                visible_file_name=f"kabala_{num}.pdf",
-                caption=f"Записал №{num}: {d}  {client}  {amount:.2f} ₪\nПерешлите PDF клиенту в WhatsApp.",
-                reply_to_message_id=message.message_id,
-            )
+        bot.reply_to(message, f"Записал: #{num} {d} — {amount:.0f} руб — {client}")
+        try:
+            path = make_receipt_pdf(num, paid_on, client, amount, pay)
+            with path.open("rb") as f:
+                bot.send_document(
+                    message.chat.id,
+                    f,
+                    visible_file_name=f"kabala_{num}.pdf",
+                    caption=f"Квитанция №{num}",
+                    reply_to_message_id=message.message_id,
+                )
+        except Exception:
+            pass
 
     def reminder_loop() -> None:
         while True:
