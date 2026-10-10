@@ -412,6 +412,32 @@ def parse_message(text: str) -> tuple[str, str, float] | None:
     return paid_on.strftime("%Y-%m-%d"), name, amount, pay
 
 
+
+def read_receipt_amount(data: bytes) -> tuple[float | None, str]:
+    try:
+        import pytesseract
+        from PIL import Image, ImageOps
+        from io import BytesIO
+        import re as _re
+    except Exception:
+        return None, ""
+    try:
+        img = ImageOps.exif_transpose(Image.open(BytesIO(data))).convert("L")
+        text = pytesseract.image_to_string(img, lang="rus+eng") or ""
+    except Exception:
+        return None, ""
+    nums = []
+    for raw in _re.findall(r"\d{2,6}(?:[.,]\d{2})?", text):
+        try:
+            val = float(raw.replace(" ", "").replace(",", "."))
+        except ValueError:
+            continue
+        if 50 <= val <= 200000:
+            nums.append(val)
+    if not nums:
+        return None, ""
+    return max(nums), "Чек"
+
 def add_payment(chat_id: int, user_id: int, paid_on: str, client: str, amount: float) -> int:
     with db() as conn:
         cur = conn.execute(
@@ -1042,6 +1068,24 @@ def main() -> None:
         text = pick_text(kind, name, when, lang)
         bot.send_message(call.message.chat.id, text)
         bot.answer_callback_query(call.id, "Текст ниже. Зажмите и копируйте.")
+
+    
+    @bot.message_handler(content_types=["photo"])
+    def on_receipt(message: telebot.types.Message) -> None:
+        bot.reply_to(message, "Смотрю чек…")
+        try:
+            photo = message.photo[-1]
+            info = bot.get_file(photo.file_id)
+            data = bot.download_file(info.file_path)
+            amount, note = read_receipt_amount(data)
+            if not amount:
+                bot.reply_to(message, "Чек вижу, сумму не прочитал. Напишите ответом, например: 881 химия")
+                return
+            today = datetime.now().strftime("%Y-%m-%d")
+            internal = add_payment(chat_id(message), message.from_user.id, today, note or "Чек", amount)
+            bot.reply_to(message, f"Записал с чека:\n#{public_no(internal)} {today} — {amount:.0f} ₽ — {note or 'Чек'}")
+        except Exception as exc:
+            bot.reply_to(message, f"Чек получил, но не записал: {exc}")
 
     @bot.message_handler(func=lambda m: bool(m.text) and not m.text.startswith("/"))
     def add(message: telebot.types.Message) -> None:

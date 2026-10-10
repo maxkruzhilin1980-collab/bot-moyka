@@ -2,3 +2,5 @@ pyTelegramBotAPI==4.27.0
 fpdf2==2.8.3
 python-dotenv==1.1.1
 tzdata==2025.2
+pytesseract==0.3.13
+Pillow==11.0.0
