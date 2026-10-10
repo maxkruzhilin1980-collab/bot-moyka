@@ -426,14 +426,20 @@ def read_receipt_amount(data: bytes) -> tuple[float | None, str]:
         text = pytesseract.image_to_string(img, lang="rus+eng") or ""
     except Exception:
         return None, ""
-    nums = []
-    for raw in _re.findall(r"\d{2,6}(?:[.,]\d{2})?", text):
+    def grab(raw: str) -> float | None:
         try:
             val = float(raw.replace(" ", "").replace(",", "."))
         except ValueError:
-            continue
-        if 50 <= val <= 200000:
-            nums.append(val)
+            return None
+        return val if 50 <= val <= 200000 else None
+    for line in text.splitlines():
+        if _re.search(r"итог|итого|total|к оплате|наличн", line, _re.I):
+            found = [grab(x) for x in _re.findall(r"\d{2,6}(?:[.,]\d{2})?", line)]
+            found = [x for x in found if x]
+            if found:
+                return found[-1], "Чек"
+    nums = [grab(x) for x in _re.findall(r"\d{2,6}(?:[.,]\d{2})?", text)]
+    nums = [x for x in nums if x]
     if not nums:
         return None, ""
     return max(nums), "Чек"
